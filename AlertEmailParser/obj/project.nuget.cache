@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "ncCcQh+lPWcRs3hsdQN6h3VH7YAkOA5JFHhixO8N1ALgG82O01nGEvfw5C6I+rMlLAzbipx/aDlTOo6lyFMRWA==",
+  "dgSpecHash": "WZ7YoOMLOtWBcEWgok5RHU8M+ELy9FkktY74LQlpWjNjnuim7c+OS5i87pba3YAVnUh4s0Oq17pkqgXGnobc/Q==",
   "success": true,
-  "projectFilePath": "C:\\Users\\d-florence\\Documents\\Git Repositories\\AlertEmailParser\\AlertEmailParser\\AlertEmailParser.csproj",
+  "projectFilePath": "C:\\Users\\d-florence\\Documents\\Git Repositories\\AlertEmailDMSMessager\\AlertEmailParser\\AlertEmailParser.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\d-florence\\.nuget\\packages\\openpop.net\\2.0.6.1120\\openpop.net.2.0.6.1120.nupkg.sha512"
   ],

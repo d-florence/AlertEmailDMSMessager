@@ -173,7 +173,8 @@ namespace AlertEmailParser
         {
             Pop3Client EmailClient = new Pop3Client();
 
-            string host = "outlook.office365.com", user = "innovationiac_amarillo@tti.tamu.edu", password = "Box46488";
+            string host = "outlook.office365.com", user = "innovationiac_amarillo@tti.tamu.edu", password = "513a97be-6ac9-46d5-aeff-178266ba6fa8";
+            //string host = "outlook.office365.com", user = "innovationiac_amarillo@tti.tamu.edu", password = "Box46488";
             //string host = "outlook.office365.com", user = "innovationiac_bryan@tti.tamu.edu", password = "Boh74186"; 
             //string host = "outlook.office365.com", user = "innovationiac_atlanta@tti.tamu.edu", password = "Zop84471";
             int port = 995;

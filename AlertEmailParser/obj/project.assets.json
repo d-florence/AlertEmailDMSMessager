@@ -40,11 +40,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\d-florence\\Documents\\Git Repositories\\AlertEmailParser\\AlertEmailParser\\AlertEmailParser.csproj",
+      "projectUniqueName": "C:\\Users\\d-florence\\Documents\\Git Repositories\\AlertEmailDMSMessager\\AlertEmailParser\\AlertEmailParser.csproj",
       "projectName": "AlertEmailParser",
-      "projectPath": "C:\\Users\\d-florence\\Documents\\Git Repositories\\AlertEmailParser\\AlertEmailParser\\AlertEmailParser.csproj",
+      "projectPath": "C:\\Users\\d-florence\\Documents\\Git Repositories\\AlertEmailDMSMessager\\AlertEmailParser\\AlertEmailParser.csproj",
       "packagesPath": "C:\\Users\\d-florence\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\d-florence\\Documents\\Git Repositories\\AlertEmailParser\\AlertEmailParser\\obj\\",
+      "outputPath": "C:\\Users\\d-florence\\Documents\\Git Repositories\\AlertEmailDMSMessager\\AlertEmailParser\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
