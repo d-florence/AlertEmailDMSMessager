@@ -2,11 +2,15 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
+using System.Threading;
+using System.Threading.Tasks;
 
 // add reference of OpenPop for email checking
 
 using OpenPop.Mime;
 using OpenPop.Pop3;
+using static AlertEmailParser.Program;
 
 namespace AlertEmailParser
 {
@@ -16,11 +20,24 @@ namespace AlertEmailParser
         public struct Alerts
         {
             public string facility;
-            public string direction;
             public string segmentName;
             public double segmentID;
             public string type;
             public DateTime eventTime;
+            public double life;
+        }
+
+        public struct FrostSolutionsSite
+        {
+            public string facility;
+            public bool isBelow;
+            public double temp;
+            public double tempLife;
+            public bool isRoadCondition;
+            public string type;
+            public double roadLife;
+            public DateTime lastUpdatedCondition;
+            public DateTime lastUpdatedTemp;
         }
 
         public static string getBetween(string strSource, string strStart, string strEnd)
@@ -42,7 +59,9 @@ namespace AlertEmailParser
             {
                 m_exePath = Path.GetDirectoryName(System.Reflection.Assembly.GetExecutingAssembly().Location);
                 if (!File.Exists(m_exePath + "\\" + "AlertEmailParser_log_" + DateTime.Now.ToString("yyyy-MM-dd") + ".txt"))
-                    File.Create(m_exePath + "\\" + "AlertEmailParser_log_" + DateTime.Now.ToString("yyyy-MM-dd") + ".txt");
+                {
+                    File.Create(m_exePath + "\\" + "AlertEmailParser_log_" + DateTime.Now.ToString("yyyy-MM-dd") + ".txt").Close();
+                }
 
                 try
                 {
@@ -122,44 +141,27 @@ namespace AlertEmailParser
                         OpenPop.Mime.Message unseenMessage = client.GetMessage(i + 1);
                         Alerts alert = new Alerts();
                         // read messages for alerts
-                        if (unseenMessage.Headers.Subject.Contains("RITIS Speed Alert"))
-                        {
-                            string body1 = unseenMessage.MessagePart.MessageParts[0].GetBodyAsText(); //first body has the readable email 
-
-                            string info = getBetween(body1, "Your alert ", ". ");
-                            string ID = getBetween(info, "Exit ", "/");
-                            alert.facility = getBetween(body1, "Your alert ", "-");
-                            alert.direction = getBetween(info, "-", " from ");
-                            alert.segmentName = getBetween(info, " from ", " has ");
-                            double.TryParse( ID , out alert.segmentID);
-                            alert.type = getBetween(body1, " has ", ". ");
-                            alert.eventTime = unseenMessage.Headers.DateSent;
-
-                            newAlerts.Add(alert); //save the alert
-
-                            LogWriter.LogWrite("New alert: '" + info + "'. reported at " + alert.eventTime.ToString("yyyy-MM-dd HH:mm:ss"));
-                            
-                            client.DeleteMessage(i+1); // delete reviewed email
-
-                        }
-                        else if (unseenMessage.Headers.Subject.Contains("Frost"))
+                       if (unseenMessage.Headers.Subject.Contains("Frost"))
                         {
                             string body1 = unseenMessage.MessagePart.GetBodyAsText(); //first body has the readable email 
 
                             string info = getBetween(body1, "All:\r\n\r\n       ", "\n\r\n\r\n\r\n");
                             string ID = getBetween(info, "Exit ", "/");
-                            alert.facility = getBetween(info, " ", "\r");
-                            alert.direction = getBetween(info, "-", " from ");
-                            alert.segmentName = getBetween(info, " from ", "\r");
+                            alert.facility = getBetween(info, " ", "\n");
+                            alert.segmentName = getBetween(info, "-- ", "\n");
+                            double.TryParse(getBetween(body1, "trigger again until ", " hours have passed."), out alert.life);
                             double.TryParse(ID, out alert.segmentID);
                             alert.type = getBetween(body1, "(", ")");
+
                             alert.eventTime = unseenMessage.Headers.DateSent;
 
-                            newAlerts.Add(alert); //save the alert
+                        
 
-                            LogWriter.LogWrite("New alert: '" + getBetween(info, " ", "\r") + alert.type + "'. reported at " + alert.eventTime.ToString("yyyy-MM-dd HH:mm:ss"));
+                            
 
-                        client.DeleteMessage(i+1); // delete reviewed email
+                            LogWriter.LogWrite("New alert: '" + alert.facility + " " + alert.type + "'. reported at " + alert.eventTime.ToString("yyyy-MM-dd HH:mm:ss"));
+                            newAlerts.Add(alert);
+                        //client.DeleteMessage(i+1); // delete reviewed email
                         }
                 }
                 LogWriter.LogWrite("Checked " + username + " email account...");
@@ -169,35 +171,164 @@ namespace AlertEmailParser
             }
         }
 
-        static void Main(string[] args)
+        public static List<FrostSolutionsSite> ManageAlerts(List<Alerts> activeAlerts, List<FrostSolutionsSite> sites) //check for timeout of alerts based on the life
+        {
+            int numAlerts = activeAlerts.Count;
+            
+
+            for (int i =  0; i < numAlerts; i++)
+            {
+                FrostSolutionsSite site = sites.Find(FrostSolutionSite => FrostSolutionSite.facility.Equals(activeAlerts[i].facility));
+
+                if (site.facility == null)
+                {
+                    site.facility = activeAlerts[i].facility;
+                    sites.Add(site);
+                }
+            }
+
+            int numsites = sites.Count;
+            TimeSpan buffer = TimeSpan.FromMinutes(15);
+
+            for (int j = 0; j < numsites; j++)
+            {
+                FrostSolutionsSite site = sites[j];
+                for (int i = 0; i < numAlerts; i++)
+                {
+                    Alerts alert = activeAlerts[i];
+                    
+                    if (alert.facility == sites[j].facility)
+                    {
+                        if (alert.type.Contains("Road"))
+                        {
+                            site.isRoadCondition = true;
+                            site.roadLife = alert.life;
+                            site.lastUpdatedCondition = alert.eventTime;
+                        }
+                        else if (alert.type.Contains(">"))
+                        {
+                            site.isBelow = false;
+                            site.tempLife = alert.life;
+                            double.TryParse(getBetween(alert.type, "Surface Temp > ", "°"), out site.temp);
+                            site.lastUpdatedTemp = alert.eventTime;
+
+                        }
+                        else if (alert.type.Contains("<"))
+                        {
+                            site.isBelow = true;
+                            site.tempLife = alert.life;
+                            double.TryParse(getBetween(alert.type, "Surface Temp < ", "°"), out site.temp);
+                            site.lastUpdatedTemp = alert.eventTime;
+                        }
+                    }
+
+                }
+
+                if( DateTime.Now - site.lastUpdatedTemp.AddHours(site.tempLife) > buffer)
+                {
+                    site.isBelow = false;
+                    site.tempLife = 99;
+                    site.lastUpdatedTemp = DateTime.Now;
+                }
+
+                if( DateTime.Now - site.lastUpdatedCondition.AddHours(site.roadLife) > buffer)
+                {
+                    site.isRoadCondition = false;
+                    site.roadLife = 99;
+                    site.lastUpdatedCondition= DateTime.Now;
+                }
+
+                sites[j] = site;
+                LogWriter.LogWrite("Updated: " + site.facility + " Temperature Data Below: "  + site.isBelow + " Temp Threshold: "+ site.temp + " Road Condition: " + site.isRoadCondition);
+            }
+            return sites;
+        }
+
+        public static void DMSAlert(List<FrostSolutionsSite> sites)
+        {
+            int numsites = sites.Count;
+
+            for (int i = 0; i < numsites; i++)
+            {
+                FrostSolutionsSite site = sites[i];
+
+                if (site.isBelow && site.isRoadCondition)
+                {
+                    //send information to DMS sign
+
+                    LogWriter.LogWrite("Sending message to PCMS for " + site.facility + "(Function still incomplete)");
+                    Console.Write("...\tPosting weather warning message!");
+                }
+            }
+        }
+
+        public static void CheckWeatherCondition(string host, string user, string password, int port, bool useSsl, List<string> seenEmailID, List<Alerts> alerts, List<FrostSolutionsSite> SupportedSites)
+        {
+            Console.Write("\nSystem Checking at " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            try
+            {
+                alerts = FetchUnseenAlerts(host, port, useSsl, user, password, seenEmailID);
+
+            }
+            catch (Exception e)
+            {
+                LogWriter.LogWrite("Failed to check email inbox.");
+                LogWriter.LogWrite(e.ToString());
+            }
+
+            SupportedSites = ManageAlerts(alerts, SupportedSites);
+
+            DMSAlert(SupportedSites);
+
+            
+        }
+
+        static async Task Main()
         {
             Pop3Client EmailClient = new Pop3Client();
 
-            string host = "outlook.office365.com", user = "innovationiac_amarillo@tti.tamu.edu", password = "513a97be-6ac9-46d5-aeff-178266ba6fa8";
+            string host = "pop.gmail.com", user = "innovationiacamarillo@gmail.com", password = "mncq zsxw zbhh xtwz";
             //string host = "outlook.office365.com", user = "innovationiac_amarillo@tti.tamu.edu", password = "Box46488";
-            //string host = "outlook.office365.com", user = "innovationiac_bryan@tti.tamu.edu", password = "Boh74186"; 
-            //string host = "outlook.office365.com", user = "innovationiac_atlanta@tti.tamu.edu", password = "Zop84471";
+            
             int port = 995;
             bool useSsl = true;
 
             List<string> seenEmailID = new List<string>();
+            List<Alerts> alerts = new List<Alerts>();
+            List<FrostSolutionsSite> SupportedSites = new List<FrostSolutionsSite>();
 
-            try
+            Console.WriteLine("Starting Weather Monitoring of : " + user);
+
+            Console.WriteLine("\n...Running!");
+            Console.WriteLine("\n\nUpdating sign every 15 minutes...\n\n");
+            
+            //var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));  //Use a 10 second gap for debugging
+            var timer = new PeriodicTimer(TimeSpan.FromMinutes(15));
+
+            CheckWeatherCondition(host, user, password, port, useSsl, seenEmailID, alerts, SupportedSites);
+
+            while (await timer.WaitForNextTickAsync())
             {
-                List<Alerts> alerts = FetchUnseenAlerts(host, port, useSsl, user, password, seenEmailID);
 
+                //try
+                //{
+                //    alerts = FetchUnseenAlerts(host, port, useSsl, user, password, seenEmailID);
 
-                    
-                
-                
+                //}
+                //catch (Exception e)
+                //{
+                //    LogWriter.LogWrite("Failed to check email inbox.");
+                //    LogWriter.LogWrite(e.ToString());
+                //}
 
+                //SupportedSites = ManageAlerts(alerts, SupportedSites);
+
+                //DMSAlert(SupportedSites);
+
+                //Console.WriteLine("System Checked at " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+
+                CheckWeatherCondition(host, user, password, port, useSsl, seenEmailID, alerts, SupportedSites);
             }
-            catch (Exception e) 
-            {
-                LogWriter.LogWrite("Cannot Connect to Email server.");
-                LogWriter.LogWrite(e.ToString());
-            }
-
         }
     }
 }
