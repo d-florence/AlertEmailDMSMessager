@@ -82,7 +82,7 @@ namespace AlertEmailParser
             {
                 try
                 {
-                    txtWriter.Write("{0} @ {1}", DateTime.Now.ToString("yyyy-MM-dd"), DateTime.Now.ToString("HH:mm:ss.fff") );
+                    txtWriter.Write("{0} @ {1}", DateTime.Now.ToString("yyyy-MM-dd"), DateTime.UtcNow.ToString("HH:mm:ss.fff") );
                     txtWriter.WriteLine(" :{0}", logMessage);
                 }
                 catch (Exception ex)
@@ -224,18 +224,18 @@ namespace AlertEmailParser
 
                 }
 
-                if( DateTime.Now - site.lastUpdatedTemp.AddHours(site.tempLife) > buffer)
+                if( DateTime.UtcNow - site.lastUpdatedTemp.AddHours(site.tempLife) > buffer)
                 {
                     site.isBelow = false;
                     site.tempLife = 99;
-                    site.lastUpdatedTemp = DateTime.Now;
+                    site.lastUpdatedTemp = DateTime.UtcNow;
                 }
 
-                if( DateTime.Now - site.lastUpdatedCondition.AddHours(site.roadLife) > buffer)
+                if( DateTime.UtcNow - site.lastUpdatedCondition.AddHours(site.roadLife) > buffer)
                 {
                     site.isRoadCondition = false;
                     site.roadLife = 99;
-                    site.lastUpdatedCondition= DateTime.Now;
+                    site.lastUpdatedCondition= DateTime.UtcNow;
                 }
 
                 sites[j] = site;
@@ -264,7 +264,7 @@ namespace AlertEmailParser
 
         public static void CheckWeatherCondition(string host, string user, string password, int port, bool useSsl, List<string> seenEmailID, List<Alerts> alerts, List<FrostSolutionsSite> SupportedSites)
         {
-            Console.Write("\nSystem Checking at " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
+            Console.Write("\nSystem Checking at " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"));
             try
             {
                 alerts = FetchUnseenAlerts(host, port, useSsl, user, password, seenEmailID);
@@ -300,10 +300,10 @@ namespace AlertEmailParser
             Console.WriteLine("Starting Weather Monitoring of : " + user);
 
             Console.WriteLine("\n...Running!");
-            Console.WriteLine("\n\nUpdating sign every 15 minutes...\n\n");
+            Console.WriteLine("\n\nUpdating sign every 5 minutes...\n\n");
             
             //var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));  //Use a 10 second gap for debugging
-            var timer = new PeriodicTimer(TimeSpan.FromMinutes(15));
+            var timer = new PeriodicTimer(TimeSpan.FromMinutes(5));
 
             CheckWeatherCondition(host, user, password, port, useSsl, seenEmailID, alerts, SupportedSites);
 
