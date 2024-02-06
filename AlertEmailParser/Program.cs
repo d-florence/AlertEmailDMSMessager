@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Linq;
-using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -11,6 +9,11 @@ using System.Threading.Tasks;
 using OpenPop.Mime;
 using OpenPop.Pop3;
 using static AlertEmailParser.Program;
+
+//add support for sending emails
+using System.Net;
+using System.Net.Mail;
+using System.Reflection.Metadata;
 
 namespace AlertEmailParser
 {
@@ -22,22 +25,6 @@ namespace AlertEmailParser
     {
 
 
-
-        public class SignSpecs
-        {
-            public string id;
-            public string ipaddress;
-            public string community;
-            public string description;
-            public bool enableUpdates;
-            public string image;
-            public double latitute;
-            public double longitute;
-            public string slot;
-            public string driveSafelyMessage;
-            public string weatherAlertMessage;
-
-        }
         public struct Alerts
         {
             public string facility;
@@ -59,6 +46,7 @@ namespace AlertEmailParser
             public double roadLife;
             public DateTime lastUpdatedCondition;
             public DateTime lastUpdatedTemp;
+            public bool updateEmailSent;
         }
 
         public static string getBetween(string strSource, string strStart, string strEnd)
@@ -112,8 +100,50 @@ namespace AlertEmailParser
                     Console.WriteLine(ex.Message);
                 }
             }
-        }
 
+            
+        }
+        public static void SendAlertEmailMessage(SmtpClient client, NetworkCredential credential, FrostSolutionsSite site)
+            {
+                using (SmtpClient smtp = new SmtpClient("smtp.gmail.com", 587))
+                {
+
+                    smtp.UseDefaultCredentials = false;
+                    smtp.Credentials = credential;
+                    smtp.EnableSsl = true;
+
+                    MailAddress from = new MailAddress("innovationiacamarillo@gmail.com");
+                    MailAddress to = new MailAddress("d-florence@tti.tamu.edu");
+                    
+                    MailMessage email = new MailMessage(from, to);
+
+                    //email.To.Add(new MailAddress("dhflorence@gmail.com"));
+
+                    email.ReplyToList.Add(new MailAddress("d-florence@tti.tamu.edu"));
+
+
+
+                    //set body-message and subject
+                    if (site.updateEmailSent)
+                    {
+                        email.Subject = "PCMS Weather Alert Message Posted - " + site.facility;
+                        email.Body = "<br><em>Please note: Test is only a test Email.</em><br><br>Weather alert for PCMS " + site.facility + " <em><b>activated.</em></b><br><br>";
+                    }
+                    else
+                    {
+                        email.Subject = "PCMS Weather Alert Message Deactivated - " + site.facility;
+                        email.Body = "<br><em>Please note: Test is only a test Email.</em><br><br>Weather alert for PCMS " + site.facility + " <em><b>deactivated.</em></b><br><br>";
+                    }
+
+                    email.SubjectEncoding = System.Text.Encoding.UTF8;
+                    email.BodyEncoding = System.Text.Encoding.UTF8;
+
+                    //text or html
+                    email.IsBodyHtml = true;
+
+                    smtp.Send(email);
+                }
+            }
         /***********    From OpenPop.net examples (IMAP protocol  ***************/
         /// <summary>
         /// Example showing:
@@ -183,7 +213,7 @@ namespace AlertEmailParser
 
                             LogWriter.LogWrite("New alert: '" + alert.facility + " " + alert.type + "'. reported at " + alert.eventTime.ToString("yyyy-MM-dd HH:mm:ss"));
                             newAlerts.Add(alert);
-                        //client.DeleteMessage(i+1); // delete reviewed email
+                        
                         }
                 }
                 LogWriter.LogWrite("Checked " + username + " email account...");
@@ -202,7 +232,7 @@ namespace AlertEmailParser
             {
                 FrostSolutionsSite site = sites.Find(FrostSolutionSite => FrostSolutionSite.facility.Equals(activeAlerts[i].facility));
 
-                if (site.facility == null)
+                if (string.IsNullOrEmpty(site.facility))
                 {
                     site.facility = activeAlerts[i].facility;
                     sites.Add(site);
@@ -266,7 +296,7 @@ namespace AlertEmailParser
             return sites;
         }
 
-        public static void DMSAlert(List<FrostSolutionsSite> sites, PCMSUpdater.PCMS.SignSpecs sign)
+        public static void DMSAlert(List<FrostSolutionsSite> sites, PCMSUpdater.PCMS.SignSpecs sign, SmtpClient client, NetworkCredential credential)
         {
             int numsites = sites.Count;
             string messageToPost;
@@ -279,23 +309,36 @@ namespace AlertEmailParser
                 if (site.isBelow && site.isRoadCondition)
                 {
                     //send information to DMS sign
-
+                    
                     LogWriter.LogWrite("Sending message to PCMS for " + site.facility + "(Function still incomplete)");
                     Console.Write("...\tPosting weather warning message!");
 
                     messageToPost = sign.alertMessage;
+                    if (site.updateEmailSent == false)
+                    {
+                        site.updateEmailSent = true;
+                        SendAlertEmailMessage(client, credential, site);
+                    }
                 }
                 else
                 {
                     messageToPost = sign.defaultMessage;
+                    if (site.updateEmailSent == true)
+                    {
+                        site.updateEmailSent = false;
+                        SendAlertEmailMessage(client, credential, site);
+                    }
+                    
                 }
 
-                PCMSresponse = PCMSUpdater.PCMS.UpdateMessage(sign, messageToPost);
-                LogWriter.LogWrite("Response form PCMSUpdater: " + PCMSresponse);
+                //The Sign updater
+                //Not ready to deploy yet!
+                //PCMSresponse = PCMSUpdater.PCMS.UpdateMessage(sign, messageToPost);
+                //LogWriter.LogWrite("Response form PCMSUpdater: " + PCMSresponse);
             }
         }
 
-        public static void CheckWeatherCondition(string host, string user, string password, int port, bool useSsl, List<string> seenEmailID, List<Alerts> alerts, List<FrostSolutionsSite> SupportedSites, PCMSUpdater.PCMS.SignSpecs sign)
+        public static void CheckWeatherCondition(SmtpClient client, NetworkCredential credential, string host, string user, string password, int port, bool useSsl, List<string> seenEmailID, List<Alerts> alerts, List<FrostSolutionsSite> SupportedSites, PCMSUpdater.PCMS.SignSpecs sign)
         {
             Console.Write("\nSystem Checking at " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"));
             try
@@ -311,16 +354,17 @@ namespace AlertEmailParser
 
             SupportedSites = ManageAlerts(alerts, SupportedSites);
 
-            DMSAlert(SupportedSites, sign);
+            DMSAlert(SupportedSites, sign, client, credential);
+
         }
 
         static async Task Main()
         {
             Pop3Client EmailClient = new Pop3Client();
 
-            string host = "pop.gmail.com", user = "innovationiacamarillo@gmail.com", password = "mncq zsxw zbhh xtwz";
+            string host = "pop.gmail.com", user = "innovationiacamarillo@gmail.com", password = "mncq zsxw zbhh xtwz", smtpPassword = "qtlj aqds vhgt rfjp";
             //string host = "outlook.office365.com", user = "innovationiac_amarillo@tti.tamu.edu", password = "Box46488";
-            
+
             int port = 995;
             bool useSsl = true;
 
@@ -336,8 +380,12 @@ namespace AlertEmailParser
             //var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));  //Use a 10 second gap for debugging
             var timer = new PeriodicTimer(TimeSpan.FromMinutes(5));
 
+            SmtpClient mySmtpClient = new SmtpClient("smtp.gmail.com", 587);
+            mySmtpClient.UseDefaultCredentials = false;
+            NetworkCredential basicAuthinticationInfo = new NetworkCredential(user, smtpPassword);
+            
 
-
+            
 
             PCMSUpdater.PCMS.SignSpecs sign = new PCMSUpdater.PCMS.SignSpecs();
             sign.id = "EB-PCMS4";
@@ -351,33 +399,17 @@ namespace AlertEmailParser
             sign.slot = ".3.100";
             sign.defaultMessage = "[fo6][jp3][jl3]DRIVE[nl]SAFELY";
             sign.alertMessage = "[pt20o0][jl3]WATCH[nl]FOR[nl]ICE[np][pt20o0][jl3][fo1]ON[nl]ROADWAY[nl]AHEAD";
-                
-            
+
+            //FrostSolutionsSite site = new FrostSolutionsSite();
+            //site.facility = "West of Adrian";
+            //SendAlertEmailMessage(mySmtpClient, basicAuthinticationInfo, site);
             
 
-            CheckWeatherCondition(host, user, password, port, useSsl, seenEmailID, alerts, SupportedSites, sign);
+            CheckWeatherCondition(mySmtpClient, basicAuthinticationInfo, host, user, password, port, useSsl, seenEmailID, alerts, SupportedSites, sign);
 
             while (await timer.WaitForNextTickAsync())
             {
-
-                //try
-                //{
-                //    alerts = FetchUnseenAlerts(host, port, useSsl, user, password, seenEmailID);
-
-                //}
-                //catch (Exception e)
-                //{
-                //    LogWriter.LogWrite("Failed to check email inbox.");
-                //    LogWriter.LogWrite(e.ToString());
-                //}
-
-                //SupportedSites = ManageAlerts(alerts, SupportedSites);
-
-                //DMSAlert(SupportedSites);
-
-                //Console.WriteLine("System Checked at " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-
-                CheckWeatherCondition(host, user, password, port, useSsl, seenEmailID, alerts, SupportedSites, sign);
+                CheckWeatherCondition(mySmtpClient, basicAuthinticationInfo,host, user, password, port, useSsl, seenEmailID, alerts, SupportedSites, sign);
             }
         }
     }
