@@ -199,8 +199,8 @@ namespace AlertEmailParser
 
                             string info = getBetween(body1, "All:\r\n\r\n        ", "\n\r\n\r\n\r\n");
                             string ID = getBetween(info, "Exit ", "/");
-                            alert.facility = getBetween(info, " All:\r\n\r\n        \r\n", "\n");
-                            alert.segmentName = getBetween(info, "-- ", "\n");
+                            alert.facility = getBetween(body1, " All:\r\n\r\n        \r\n", "\n");
+                            alert.segmentName = getBetween(body1, "-- ", "\n");
                             double.TryParse(getBetween(body1, "trigger again until ", " hours have passed."), out alert.life);
                             double.TryParse(ID, out alert.segmentID);
                             alert.type = getBetween(body1, "(", ")");
