@@ -117,7 +117,7 @@ namespace AlertEmailParser
                     
                     MailMessage email = new MailMessage(from, to);
 
-                    //email.To.Add(new MailAddress("dhflorence@gmail.com"));
+                    email.To.Add(new MailAddress("k-balke@tti.tamu.edu"));
 
                     email.ReplyToList.Add(new MailAddress("d-florence@tti.tamu.edu"));
 
@@ -197,9 +197,9 @@ namespace AlertEmailParser
                         {
                             string body1 = unseenMessage.MessagePart.GetBodyAsText(); //first body has the readable email 
 
-                            string info = getBetween(body1, "All:\r\n\r\n       ", "\n\r\n\r\n\r\n");
+                            string info = getBetween(body1, "All:\r\n\r\n        ", "\n\r\n\r\n\r\n");
                             string ID = getBetween(info, "Exit ", "/");
-                            alert.facility = getBetween(info, " ", "\n");
+                            alert.facility = getBetween(info, " All:\r\n\r\n        \r\n", "\n");
                             alert.segmentName = getBetween(info, "-- ", "\n");
                             double.TryParse(getBetween(body1, "trigger again until ", " hours have passed."), out alert.life);
                             double.TryParse(ID, out alert.segmentID);
@@ -211,7 +211,7 @@ namespace AlertEmailParser
 
                             
 
-                            LogWriter.LogWrite("New alert: '" + alert.facility + " " + alert.type + "'. reported at " + alert.eventTime.ToString("yyyy-MM-dd HH:mm:ss"));
+                            LogWriter.LogWrite("New alert at: '" + alert.facility + " . Alert type: " + alert.type + "'. reported at " + alert.eventTime.ToString("yyyy-MM-dd HH:mm:ss"));
                             newAlerts.Add(alert);
                         
                         }
