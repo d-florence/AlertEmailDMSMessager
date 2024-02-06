@@ -14,9 +14,30 @@ using static AlertEmailParser.Program;
 
 namespace AlertEmailParser
 {
+
+
+
+    
     class Program
     {
-        
+
+
+
+        public class SignSpecs
+        {
+            public string id;
+            public string ipaddress;
+            public string community;
+            public string description;
+            public bool enableUpdates;
+            public string image;
+            public double latitute;
+            public double longitute;
+            public string slot;
+            public string driveSafelyMessage;
+            public string weatherAlertMessage;
+
+        }
         public struct Alerts
         {
             public string facility;
@@ -82,7 +103,8 @@ namespace AlertEmailParser
             {
                 try
                 {
-                    txtWriter.Write("{0} @ {1}", DateTime.Now.ToString("yyyy-MM-dd"), DateTime.UtcNow.ToString("HH:mm:ss.fff") );
+                    txtWriter.Write("UTC Time: {0} @ {1}", DateTime.UtcNow.ToString("yyyy-MM-dd"), DateTime.UtcNow.ToString("HH:mm:ss.fff") );
+                    txtWriter.Write(",CST Time: {0} @ {1}", DateTime.Now.ToString("yyyy-MM-dd"), DateTime.Now.ToString("HH:mm:ss.fff"));
                     txtWriter.WriteLine(" :{0}", logMessage);
                 }
                 catch (Exception ex)
@@ -141,7 +163,7 @@ namespace AlertEmailParser
                         OpenPop.Mime.Message unseenMessage = client.GetMessage(i + 1);
                         Alerts alert = new Alerts();
                         // read messages for alerts
-                       if (unseenMessage.Headers.Subject.Contains("Frost"))
+                       if (unseenMessage.Headers.Subject.Contains("Frost") && unseenMessage.Headers.From.Address.Contains("info@frostsolutions.io") )
                         {
                             string body1 = unseenMessage.MessagePart.GetBodyAsText(); //first body has the readable email 
 
@@ -244,9 +266,11 @@ namespace AlertEmailParser
             return sites;
         }
 
-        public static void DMSAlert(List<FrostSolutionsSite> sites)
+        public static void DMSAlert(List<FrostSolutionsSite> sites, PCMSUpdater.PCMS.SignSpecs sign)
         {
             int numsites = sites.Count;
+            string messageToPost;
+            string PCMSresponse = string.Empty;
 
             for (int i = 0; i < numsites; i++)
             {
@@ -258,11 +282,20 @@ namespace AlertEmailParser
 
                     LogWriter.LogWrite("Sending message to PCMS for " + site.facility + "(Function still incomplete)");
                     Console.Write("...\tPosting weather warning message!");
+
+                    messageToPost = sign.alertMessage;
                 }
+                else
+                {
+                    messageToPost = sign.defaultMessage;
+                }
+
+                PCMSresponse = PCMSUpdater.PCMS.UpdateMessage(sign, messageToPost);
+                LogWriter.LogWrite("Response form PCMSUpdater: " + PCMSresponse);
             }
         }
 
-        public static void CheckWeatherCondition(string host, string user, string password, int port, bool useSsl, List<string> seenEmailID, List<Alerts> alerts, List<FrostSolutionsSite> SupportedSites)
+        public static void CheckWeatherCondition(string host, string user, string password, int port, bool useSsl, List<string> seenEmailID, List<Alerts> alerts, List<FrostSolutionsSite> SupportedSites, PCMSUpdater.PCMS.SignSpecs sign)
         {
             Console.Write("\nSystem Checking at " + DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss"));
             try
@@ -278,9 +311,7 @@ namespace AlertEmailParser
 
             SupportedSites = ManageAlerts(alerts, SupportedSites);
 
-            DMSAlert(SupportedSites);
-
-            
+            DMSAlert(SupportedSites, sign);
         }
 
         static async Task Main()
@@ -305,7 +336,26 @@ namespace AlertEmailParser
             //var timer = new PeriodicTimer(TimeSpan.FromSeconds(10));  //Use a 10 second gap for debugging
             var timer = new PeriodicTimer(TimeSpan.FromMinutes(5));
 
-            CheckWeatherCondition(host, user, password, port, useSsl, seenEmailID, alerts, SupportedSites);
+
+
+
+            PCMSUpdater.PCMS.SignSpecs sign = new PCMSUpdater.PCMS.SignSpecs();
+            sign.id = "EB-PCMS4";
+            sign.IPAddress = "166.239.126.13";
+            sign.community = "Public";
+            sign.description = "Amarillo I-40 PCMS4";
+            sign.enableUpdates = true;
+            sign.image = "http://";
+            sign.latitute = 31.99962031927457;
+            sign.longitute = -101.9262841747892;
+            sign.slot = ".3.100";
+            sign.defaultMessage = "[fo6][jp3][jl3]DRIVE[nl]SAFELY";
+            sign.alertMessage = "[pt20o0][jl3]WATCH[nl]FOR[nl]ICE[np][pt20o0][jl3][fo1]ON[nl]ROADWAY[nl]AHEAD";
+                
+            
+            
+
+            CheckWeatherCondition(host, user, password, port, useSsl, seenEmailID, alerts, SupportedSites, sign);
 
             while (await timer.WaitForNextTickAsync())
             {
@@ -327,7 +377,7 @@ namespace AlertEmailParser
 
                 //Console.WriteLine("System Checked at " + DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
 
-                CheckWeatherCondition(host, user, password, port, useSsl, seenEmailID, alerts, SupportedSites);
+                CheckWeatherCondition(host, user, password, port, useSsl, seenEmailID, alerts, SupportedSites, sign);
             }
         }
     }
