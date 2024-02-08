@@ -232,7 +232,7 @@ namespace AlertEmailParser
             {
                 FrostSolutionsSite site = sites.Find(FrostSolutionSite => FrostSolutionSite.facility.Equals(activeAlerts[i].facility));
 
-                if (string.IsNullOrEmpty(site.facility))
+                if (site.facility == null)
                 {
                     site.facility = activeAlerts[i].facility;
                     sites.Add(site);
