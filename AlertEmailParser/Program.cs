@@ -127,12 +127,12 @@ namespace AlertEmailParser
                     if (site.updateEmailSent)
                     {
                         email.Subject = "PCMS Weather Alert Message Posted - " + site.facility;
-                        email.Body = "<br><em>Please note: Test is only a test Email.</em><br><br>Weather alert for PCMS " + site.facility + " <em><b>activated.</em></b><br><br>";
+                        email.Body = "<br><em>Please note: This is only a test Email.</em><br><br>Weather alert for PCMS " + site.facility + " <em><b>activated.</em></b><br><br>";
                     }
                     else
                     {
                         email.Subject = "PCMS Weather Alert Message Deactivated - " + site.facility;
-                        email.Body = "<br><em>Please note: Test is only a test Email.</em><br><br>Weather alert for PCMS " + site.facility + " <em><b>deactivated.</em></b><br><br>";
+                        email.Body = "<br><em>Please note: This is only a test Email.</em><br><br>Weather alert for PCMS " + site.facility + " <em><b>deactivated.</em></b><br><br>";
                     }
 
                     email.SubjectEncoding = System.Text.Encoding.UTF8;
@@ -197,10 +197,10 @@ namespace AlertEmailParser
                         {
                             string body1 = unseenMessage.MessagePart.GetBodyAsText(); //first body has the readable email 
 
-                            string info = getBetween(body1, "All:\r\n\r\n        ", "\n\r\n\r\n\r\n");
+                            string info = getBetween(body1, "All:\r\n\r\n       ", "\r\n\r\n");
                             string ID = getBetween(info, "Exit ", "/");
-                            alert.facility = getBetween(body1, " All:\r\n\r\n        \r\n", "\n");
-                            alert.segmentName = getBetween(body1, "-- ", "\n");
+                            alert.facility = getBetween(info, " ", "\r");
+                            alert.segmentName = getBetween(info, "— ", "\r");
                             double.TryParse(getBetween(body1, "trigger again until ", " hours have passed."), out alert.life);
                             double.TryParse(ID, out alert.segmentID);
                             alert.type = getBetween(body1, "(", ")");
@@ -211,7 +211,7 @@ namespace AlertEmailParser
 
                             
 
-                            LogWriter.LogWrite("New alert at: '" + alert.facility + " . Alert type: " + alert.type + "'. reported at " + alert.eventTime.ToString("yyyy-MM-dd HH:mm:ss"));
+                            LogWriter.LogWrite("New alert at: \"" + alert.facility + "\". Alert type: \"" + alert.type + "\". Segment: \"" + alert.segmentName + "reported at: " + alert.eventTime.ToString("yyyy-MM-dd HH:mm:ss"));
                             newAlerts.Add(alert);
                         
                         }
