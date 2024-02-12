@@ -127,12 +127,12 @@ namespace AlertEmailParser
                     if (site.updateEmailSent)
                     {
                         email.Subject = "PCMS Weather Alert Message Posted - " + site.facility;
-                        email.Body = "<br>Weather alert for PCMS that will be at " + site.facility + " <em><b>activated.</em></b><br><br>";
+                        email.Body = "<br>Weather alert <em><b>activated on "  + DateTime.Now.ToString("yyyy-MM-dd") + " at " + DateTime.Now.ToString("HH:mm") + " CST </em></b> for PCMS that will be at " + site.facility + ".<br><br>";
                     }
                     else
                     {
                         email.Subject = "PCMS Weather Alert Message Deactivated - " + site.facility;
-                        email.Body = "<br>Weather alert for PCMS that will be at " + site.facility + " <em><b>deactivated.</em></b><br><br>";
+                        email.Body = "<br>Weather alert <em><b>deactivated on " + DateTime.Now.ToString("yyyy-MM-dd") + " at "+ DateTime.Now.ToString("HH:mm") + " CST </em></b> for PCMS that will be at " + site.facility + ".<br><br>";
                     }
 
                     email.SubjectEncoding = System.Text.Encoding.UTF8;
@@ -236,7 +236,7 @@ namespace AlertEmailParser
             }
 
             int numsites = sites.Count;
-            TimeSpan buffer = TimeSpan.FromMinutes(15);
+            TimeSpan buffer = TimeSpan.FromMinutes(30); //increase buffer time to address for up to a 30 minute delay between alert emails form FrostSolutions
 
             for (int j = 0; j < numsites; j++)
             {
@@ -292,7 +292,7 @@ namespace AlertEmailParser
             return sites;
         }
 
-        public static void DMSAlert(List<FrostSolutionsSite> sites, PCMSUpdater.PCMS.SignSpecs sign, SmtpClient client, NetworkCredential credential)
+        public static void DMSAlert(ref List<FrostSolutionsSite> sites, PCMSUpdater.PCMS.SignSpecs sign, SmtpClient client, NetworkCredential credential)
         {
             int numsites = sites.Count;
             string messageToPost;
@@ -313,6 +313,7 @@ namespace AlertEmailParser
                     if (site.updateEmailSent == false)
                     {
                         site.updateEmailSent = true;
+                        
                         SendAlertEmailMessage(client, credential, site);
                     }
                 }
@@ -331,7 +332,10 @@ namespace AlertEmailParser
                 //Not ready to deploy yet!
                 //PCMSresponse = PCMSUpdater.PCMS.UpdateMessage(sign, messageToPost);
                 //LogWriter.LogWrite("Response form PCMSUpdater: " + PCMSresponse);
+                LogWriter.LogWrite("Checked need for PCMS actication for " + site.facility + " email sent status: " + site.updateEmailSent.ToString());
+                sites[i] = site; //store any changes
             }
+            //return sites;
         }
 
         public static void CheckWeatherCondition(SmtpClient client, NetworkCredential credential, string host, string user, string password, int port, bool useSsl, List<string> seenEmailID, List<Alerts> alerts, List<FrostSolutionsSite> SupportedSites, PCMSUpdater.PCMS.SignSpecs sign)
@@ -350,7 +354,7 @@ namespace AlertEmailParser
 
             SupportedSites = ManageAlerts(alerts, SupportedSites);
 
-            DMSAlert(SupportedSites, sign, client, credential);
+            DMSAlert(ref SupportedSites, sign, client, credential);
 
         }
 
